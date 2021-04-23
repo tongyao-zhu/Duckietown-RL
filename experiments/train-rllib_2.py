@@ -29,15 +29,15 @@ logger.setLevel(logging.INFO)
 
 ###########################################################
 # Load config
-config = load_config('./config/config.yml', config_updates={"env_config": {"mode": "train"}})
+config = load_config('./config/config_map_2.yml', config_updates={"env_config": {"mode": "train"}})
 # config = load_config('./config/config.yml', config_updates={})
 # Set numpy and random seed
 seed(1234)
 
 ###########################################################
 # Set up experiment parameters
-config_updates = {"seed": 2,
-                  "experiment_name": "map1_distance_lane",
+config_updates = {"seed": 20,
+                  "experiment_name": "map2",
                   "env_config": {},
                   "rllib_config": {}
                   }

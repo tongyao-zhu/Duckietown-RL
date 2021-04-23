@@ -21,7 +21,7 @@ env_config:
   # Crop the top part of the image
   crop_image_top: true
   # The top 1/top_crop_divider part of the image will be cropped off. (E.g. 3 crops the top third of the image)
-  top_crop_divider: 4
+  top_crop_divider: 6
   # Convert the image to grayscale
   grayscale_image: false
   # Stack multiple frames as input
@@ -36,7 +36,7 @@ env_config:
   action_type: 'heading'
   # Overwrite the default reward function of Gym Duckietown ('default' leaves the default reward of the gym)
   # Available options: 'default', 'default_clipped', 'posangle', 'lane_distance'
-  reward_function: 'lane_distance'
+  reward_function: 'default_clipped'
   # Set Gym Duckietown's distortion parameter to generate fisheye distorted images
   distortion: true
   # How large ange deviation should be accepted when the robot is placed into the simulator
@@ -48,7 +48,7 @@ env_config:
   # Allowed values: floats in the (0., 1.) interval or 'random' to get random values in each instance of the env
   action_delay_ratio: 0.0
   # Map(s) used during training. Individual map names could be specified or 'multimap1' to train on a custom map set
-  training_map: 'map1'
+  training_map: 'multimap_map2_5'
   # Use Gym Duckietown's domain randomization
   domain_rand: false
   dynamics_rand: false
