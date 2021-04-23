@@ -1,7 +1,7 @@
 # === Config file for PPO ===================================================
 # Total timesteps used to train a model (termination condition).
 # Note, that scientific notation is only interpreted as a number if the . and the sign are included!
-timesteps_total: 5.e+6
+timesteps_total: 1.e+6
 rllib_config:
   # === RLlib common congfig ================================================
   # https://ray.readthedocs.io/en/latest/rllib-training.html#common-parameters
