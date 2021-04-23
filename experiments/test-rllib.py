@@ -6,6 +6,7 @@ To select a trained agent use the --seed-model-id argument (e.g. --seed-model-id
 __license__ = "MIT"
 __copyright__ = "Copyright (c) 2020 András Kalapos"
 
+import math
 import time
 from tqdm import tqdm
 import os
@@ -33,7 +34,7 @@ from duckietown_utils.salient_object_visualization import *
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-os.environ['CUDA_VISIBLE_DEVICES']=''
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 ###########################################################
 # Read and process command line arguments
@@ -41,6 +42,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--seed-model-id', default=3045, type=int,
                     help='Unique experiment identifier, referred to as seed (incorrectly)'
                          'A 4 digit number. Selected models: 3012, 3045, 3090, 3092')
+parser.add_argument('--seed', required=True, type=int,
+                    help="the seed of the environment to set")
 parser.add_argument('--analyse-trajectories', action='store_true',
                     help='Calculate metrics and create trajectory plots.')
 parser.add_argument('--visualize-salient-obj', action='store_true',
@@ -66,7 +69,7 @@ else:
 
 test_map = args.map_name
 
-seed(1234)
+# seed(1234)
 
 ###########################################################
 # Load experiment
@@ -76,6 +79,22 @@ update_config(config, {'env_config': {'mode': 'inference',
                                       'training_map': test_map,  # This controls what is used in the demo part
                                       'domain_rand': False
                                       }})
+
+# function to convert the actions for simulator to actions in duckietown env
+def convert_to_vel_angle_actions(actions):
+    baseline = 0.102
+    radius = 0.0318
+    k_r,k_l = 27.0, 27.0
+    k_r_inv, k_l_inv = (1.0+0)/k_r, (1.0+0)/k_l
+    u_l_limited, u_r_limited = actions
+    u_l, u_r = u_l_limited, u_r_limited
+    omega_r, omega_l = u_r/k_r_inv, u_l/k_l_inv
+    vel = (omega_r + omega_l)* radius / 2
+    angle = (omega_r * radius - vel)/(0.5*baseline)
+    angle_backup = (vel - omega_l * radius)/(0.5*baseline)
+    # print("angle is {}, angle backup is {}".format(angle, angle_backup))
+    assert math.isclose(angle, angle_backup)
+    return np.array([vel, angle])
 
 # Set up env
 ray.init(**config["ray_init_config"])
@@ -88,20 +107,40 @@ trainer.restore(checkpoint_path)
 
 print_config(trainer.config)
 
+# add seed to env config
+seed = args.seed
+
+actions = []
+
 ###########################################################
 ###########################################################
 # Simple demonstration of closed loop performance
-if not (args.analyse_trajectories or args.visualize_salient_obj or args.reward_plots or args.visualize_dot_trajectories):
+if not (
+        args.analyse_trajectories or args.visualize_salient_obj or args.reward_plots or args.visualize_dot_trajectories):
     # env = Monitor(env, "gym_monitor_results", write_upon_reset=True, force=True)
-    env = launch_and_wrap_env(config["env_config"])
-    for i in range(5):
+    env = launch_and_wrap_env(config["env_config"], seed)
+    print(env)
+    # config['env_config'] del 'action_type'
+    for i in range(1):
+        steps = 0
         obs = env.reset()
         env.render(render_mode)
+        print("env's seed is {}".format(env.seed_value))
         done = False
         while not done:
             action = trainer.compute_action(obs, explore=False)
+            tuple_action = np.clip(np.array([1 + action[0], 1 - action[0]]), 0., 1.)
+            angle_vel_action = convert_to_vel_angle_actions(tuple_action)
+            actions.append(convert_to_vel_angle_actions(tuple_action))
+            # print("angle_vel_action is {}".format(angle_vel_action))
             obs, reward, done, info = env.step(action)
-            cv2.imshow("Observation", cv2.cvtColor(cv2.resize(obs[..., -3:].astype('float32'), (300, 300)), cv2.COLOR_BGR2RGB))
+            steps += 1
+            if done:
+                print("Unfortunately, we failed!")
+                print("current reward is {}".format(reward))
+                print("current steps is {}".format(steps))
+            cv2.imshow("Observation",
+                       cv2.cvtColor(cv2.resize(obs[..., -3:].astype('float32'), (300, 300)), cv2.COLOR_BGR2RGB))
             cv2.waitKey(1)
             orig_distorion = env.unwrapped.distortion
             env.unwrapped.distortion = False
@@ -109,7 +148,11 @@ if not (args.analyse_trajectories or args.visualize_salient_obj or args.reward_p
             env.unwrapped.distortion = orig_distorion
             if env.unwrapped.frame_skip > 1:
                 time.sleep(env.unwrapped.delta_time * env.unwrapped.frame_skip)
-
+# print("Total Reward", total_reward)
+# dump the controls using numpy
+print("actions are {}".format(actions))
+np.savetxt('./{}_seed{}.txt'.format(args.map_name, seed), actions, delimiter=',')
+print("actions saved to file!")
 ###########################################################
 # Plot trajectories and evaluate performance
 if args.analyse_trajectories:
@@ -147,8 +190,9 @@ if args.visualize_salient_obj:
             displayed_obs = (displayed_obs / 255.).astype(np.float32)
         else:
             displayed_obs = obs
-        frame = display_salient_map2(salient_map_mean, displayed_obs, "Salient objects", frames_in_stack_to_be_displayed=[2],
-                             use_color_map=False)
+        frame = display_salient_map2(salient_map_mean, displayed_obs, "Salient objects",
+                                     frames_in_stack_to_be_displayed=[2],
+                                     use_color_map=False)
         action = trainer.compute_action(obs, explore=False)
         obs, reward, done, info = env.step(action)
         out.write((frame * 255).astype(np.uint8))
@@ -179,6 +223,7 @@ if args.visualize_dot_trajectories:
 # Detailed demonstration of closed loop performance
 if args.reward_plots:
     from gym_duckietown.objects import DuckiebotObj
+
     for i in range(1):
         env = launch_and_wrap_env(config["env_config"], i)
         prox_pen = []
@@ -213,13 +258,14 @@ if args.reward_plots:
             t2 = time.time()
             env.unwrapped.distortion = False
             env.render(render_mode)
-            #if step in np.array(range(30))*30:
-                # cv2.imwrite("./LFV/TopView{:4.3f}.png".format(info['Simulator']['timestamp']-0.0333333333), cv2.cvtColor(top_view, cv2.COLOR_RGB2BGR))
-            step +=1
+            # if step in np.array(range(30))*30:
+            # cv2.imwrite("./LFV/TopView{:4.3f}.png".format(info['Simulator']['timestamp']-0.0333333333), cv2.cvtColor(top_view, cv2.COLOR_RGB2BGR))
+            step += 1
             env.unwrapped.distortion = True
             t3 = time.time()
-            print("Inference time {:4.3f}ms | Env step time {:4.3f}ms | Render time {:4.3f}ms".format((t1-t0)*1000,
-                  (t2-t1)*1000, (t3-t2)*100))
+            print("Inference time {:4.3f}ms | Env step time {:4.3f}ms | Render time {:4.3f}ms".format((t1 - t0) * 1000,
+                                                                                                      (t2 - t1) * 1000,
+                                                                                                      (t3 - t2) * 100))
 
         matplotlib.use('TkAgg')
         plt.subplot(211)
@@ -230,7 +276,7 @@ if args.reward_plots:
         plt.subplot(212)
         plt.plot(np.array(vel_reward))
         plt.plot(np.array(angl_reward))
-        plt.plot(np.array(coll_reward)+np.array(vel_reward)+np.array(angl_reward))
+        plt.plot(np.array(coll_reward) + np.array(vel_reward) + np.array(angl_reward))
         plt.legend(["Velocity", "Orientation", "Sum"])
         plt.ylabel("Reward components")
         plt.grid('on')
@@ -238,14 +284,15 @@ if args.reward_plots:
 
         if len(npc_robot_pos) > 0:
             ROBOT_LENGTH = 0.18
-            plt.plot(np.array(timestamps), np.linalg.norm(np.array(npc_robot_pos)-np.array(ego_robot_pos), axis=1)-ROBOT_LENGTH)
+            plt.plot(np.array(timestamps),
+                     np.linalg.norm(np.array(npc_robot_pos) - np.array(ego_robot_pos), axis=1) - ROBOT_LENGTH)
             plt.ylabel("Distance between robot centers[m]")
             plt.grid('on')
             plt.xlabel("Time [s]")
             plt.show()
 
         plt.plot(np.array(timestamps[1:]), env.unwrapped.frame_rate *
-                  np.linalg.norm(np.array(ego_robot_pos)[1:] - np.array(ego_robot_pos)[:-1], axis=1))
+                 np.linalg.norm(np.array(ego_robot_pos)[1:] - np.array(ego_robot_pos)[:-1], axis=1))
         if len(npc_robot_pos) > 0:
             plt.plot(np.array(timestamps[1:]), env.unwrapped.frame_rate *
                      np.linalg.norm(np.array(npc_robot_pos)[1:] - np.array(npc_robot_pos)[:-1], axis=1))
@@ -254,4 +301,3 @@ if args.reward_plots:
         plt.grid('on')
         plt.xlabel("Time [s]")
         plt.show()
-

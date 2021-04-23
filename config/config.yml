@@ -15,19 +15,19 @@ env_config:
   # Run mode allows to load different settings in different run modes. Available options: 'train', 'inference', 'debug'
   mode: 'debug'
   # Length of an episode (if not terminated due to a failure)
-  episode_max_steps: 500
+  episode_max_steps: 1500
   # The input image will be scaled to (height, width)
   resized_input_shape : '(84, 84)' # [80, 160]
   # Crop the top part of the image
   crop_image_top: true
   # The top 1/top_crop_divider part of the image will be cropped off. (E.g. 3 crops the top third of the image)
-  top_crop_divider: 3
+  top_crop_divider: 4
   # Convert the image to grayscale
   grayscale_image: false
   # Stack multiple frames as input
   frame_stacking: true
   # Number of frames to stack if frame stacking is enabled
-  frame_stacking_depth: 3
+  frame_stacking_depth: 5
   # Apply motion blur to the images during training
   motion_blur: false
   # Map the action space to a certain type. Available options are:
@@ -36,7 +36,7 @@ env_config:
   action_type: 'heading'
   # Overwrite the default reward function of Gym Duckietown ('default' leaves the default reward of the gym)
   # Available options: 'default', 'default_clipped', 'posangle', 'lane_distance'
-  reward_function: 'posangle'
+  reward_function: 'default_clipped'
   # Set Gym Duckietown's distortion parameter to generate fisheye distorted images
   distortion: true
   # How large ange deviation should be accepted when the robot is placed into the simulator
@@ -48,7 +48,7 @@ env_config:
   # Allowed values: floats in the (0., 1.) interval or 'random' to get random values in each instance of the env
   action_delay_ratio: 0.0
   # Map(s) used during training. Individual map names could be specified or 'multimap1' to train on a custom map set
-  training_map: 'multimap1'
+  training_map: 'map1'
   # Use Gym Duckietown's domain randomization
   domain_rand: false
   dynamics_rand: false
@@ -64,7 +64,7 @@ env_config:
     # Supported options: 'duckie', 'duckiebot', 'cone', 'barrier'
     duckie:
       # Density: Amount of ducks per drivable tile. Can't be larger than one currently
-      density: 0.5
+      density: 0
       # Non-static objects move according to their default behaviour implemented in the gym Duckietown
       # Duckies "walk" back and forth (like crossing the road), duckiebots perform lane following.
       static: true

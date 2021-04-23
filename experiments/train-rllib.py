@@ -37,7 +37,7 @@ seed(1234)
 ###########################################################
 # Set up experiment parameters
 config_updates = {"seed": 0000,
-                  "experiment_name": "Debug",
+                  "experiment_name": "all",
                   "env_config": {},
                   "rllib_config": {}
                   }

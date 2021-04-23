@@ -1,12 +1,10 @@
 #! /bin/bash
 set -e
 
-conda remove --name dtaido5 --all -y
 echo ""
 echo "################################################"
 echo "Creating new conda environment: dtaido5"
 echo "################################################"
-conda env create -f environment_aido5.yml
 
 echo "################################################"
 echo "Clone gym-duckietown"
@@ -19,13 +17,13 @@ echo ""
 echo "################################################"
 echo "Install gym-duckietown"
 echo "################################################"
-conda run -vn dtaido5 pip install -e gym-duckietown 
+conda run -vn dtaido5 pip3 install -e gym-duckietown
 #conda run -vn dtaido5 pip install duckietown-gym-daffy==5.0.16
 
 echo "################################################"
 echo "Copy custom maps to the installed pacages"
 echo "################################################"
-conda run -vn dtaido5 python -m maps.copy_custom_maps_to_duckietown_libs
+conda run -vn dtaido5_new python -m maps.copy_custom_maps_to_duckietown_libs
 
 echo "################################################"
 echo "

@@ -6,6 +6,7 @@ __copyright__ = "Copyright (c) 2020 András Kalapos"
 
 import logging
 from gym_duckietown.simulator import Simulator, DEFAULT_ROBOT_SPEED, DEFAULT_CAMERA_WIDTH, DEFAULT_CAMERA_HEIGHT
+from gym_duckietown.envs import DuckietownEnv
 
 from duckietown_utils.wrappers.observation_wrappers import *
 from duckietown_utils.wrappers.action_wrappers import *
@@ -27,13 +28,16 @@ MAPSETS = {'multimap1': ['_custom_technical_floor', '_huge_C_floor', '_huge_V_fl
                               '_custom_technical_floor', '_huge_C_floor', '_huge_V_floor', '_plus_floor',
                               'small_loop', 'small_loop_cw', 'loop_empty'
                               ],
+           'multimap_map1': 'map1',
+           'multimap_map2_5': ['map2','map3','map4','map5'],
+           'multimap_all': ['map1', 'map2','map3','map4','map5']
            }
 
 CAMERA_WIDTH = DEFAULT_CAMERA_WIDTH
 CAMERA_HEIGHT = DEFAULT_CAMERA_HEIGHT
 
 
-def launch_and_wrap_env(env_config, default_env_id=0):
+def launch_and_wrap_env(env_config, seed=13, default_env_id=0):
     try:
         env_id = env_config.worker_index  # config is passed by rllib
     except AttributeError as err:
@@ -45,10 +49,10 @@ def launch_and_wrap_env(env_config, default_env_id=0):
     if type(robot_speed) is dict or robot_speed == 'default':
         robot_speed = DEFAULT_ROBOT_SPEED  # The initial robot speed won't be random
 
+    print("our seed of the environment is now {}".format(seed))
     # The while loop and try block are necessary to prevent instant training crash from the
     # "Exception: Could not find a valid starting pose after 5000 attempts" in duckietown-gym-daffy 5.0.13
     spawn_successful = False
-    seed = 1234 + env_id
     while not spawn_successful:
         try:
             env = Simulator(
@@ -67,6 +71,13 @@ def launch_and_wrap_env(env_config, default_env_id=0):
                 frame_skip=env_config["frame_skip"],
                 robot_speed=robot_speed
             )
+            # env = DuckietownEnv(
+            #     map_name=resolve_multimap_name(env_config["training_map"], env_id),
+            #     domain_rand=False,
+            #     draw_bbox=False,
+            #     max_steps=500001,
+            #     seed=seed
+            # )
             spawn_successful = True
         except Exception as e:
             seed += 1  # Otherwise it selects the same tile in the next attempt

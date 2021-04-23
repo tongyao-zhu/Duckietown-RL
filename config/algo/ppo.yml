@@ -1,7 +1,7 @@
 # === Config file for PPO ===================================================
 # Total timesteps used to train a model (termination condition).
 # Note, that scientific notation is only interpreted as a number if the . and the sign are included!
-timesteps_total: 1.e+6
+timesteps_total: 5.e+6
 rllib_config:
   # === RLlib common congfig ================================================
   # https://ray.readthedocs.io/en/latest/rllib-training.html#common-parameters
@@ -13,7 +13,7 @@ rllib_config:
   sample_batch_size: 265
   # Number of GPUs to allocate to the trainer process. This can be fractional
   # (e.g., 0.3 GPUs).
-  num_gpus: 1
+  num_gpus: 4
   # Training batch size, if applicable. Should be >= sample_batch_size.
   # Samples batches will be concatenated together to a batch of this size,
   # which is then passed to SGD.
@@ -30,7 +30,7 @@ rllib_config:
   # The evaluation stats will be reported under the "evaluation" metric key.
   # Note that evaluation is currently not parallelized, and that for Ape-X
   # metrics are already only reported for the lowest epsilon workers.
-  "evaluation_interval": None # 25
+  "evaluation_interval": 5000 # 25
   # Number of episodes to run per evaluation period. If using multiple
   # evaluation workers, we will run at least this many episodes total.
   "evaluation_num_episodes": 2
