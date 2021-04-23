@@ -94,6 +94,7 @@ class Heading2WheelVelsWrapper(gym.ActionWrapper):
             action = np.clip(np.array([1 + action*0.666666, 1 - action*0.666666]), 0., 1.)
         else:
             action = np.clip(np.array([1 + action, 1 - action]), 0., 1.)  # Full speed single value control
+        # print("after processing, now action is {}".format(action))
         return action
 
 

@@ -64,6 +64,7 @@ class DtRewardWrapperDistanceTravelled(gym.RewardWrapper):
         if np.isnan(my_reward):
             my_reward = 0.
             logger.error("Reward is nan!!!")
+        #print("using distance travelled reward, now the reward is {}".format(my_reward))
         return my_reward
 
 
@@ -98,6 +99,7 @@ class DtRewardPosAngle(gym.RewardWrapper):
         # If the robot leaves the track or collides with an other object it receives a penalty
         # if reward <= -1000.:  # Gym Duckietown gives -1000 for this
         #     early_termination_penalty = -10.
+        #print("using DtRewardPosAngle, now the reward is {}".format(self.orientation_reward ))
         return self.orientation_reward + early_termination_penalty
 
     def step(self, action):
@@ -213,6 +215,7 @@ class DtRewardClipperWrapper(gym.RewardWrapper):
         self.clip_low = clip_low
 
     def reward(self, reward):
+        #print("DT reward clipper input reward is {}".format(reward))
         if np.isnan(reward):
             reward = 0.
             logger.error("Reward is nan!!!")
@@ -230,6 +233,7 @@ class DtRewardVelocity(gym.RewardWrapper):
         if np.isnan(self.velocity_reward):
             self.velocity_reward = 0.
             logger.error("Velocity reward is nan, likely because the action was [nan, nan]!")
+        #print("in velocity reward, the reward is {}".format(self.velocity_reward))
         return reward + self.velocity_reward
 
     def reset(self, **kwargs):
@@ -255,12 +259,17 @@ class DtRewardCollisionAvoidance(gym.RewardWrapper):
     def reward(self, reward):
         # Proximity reward is proportional to the change of proximity penalty. Range is ~ 0 - +1.5 (empirical)
         # Moving away from an obstacle is promoted, if the robot and the obstacle are close to each other.
-        proximity_penalty = self.unwrapped.proximity_penalty2(self.unwrapped.cur_pos, self.unwrapped.cur_angle)
+        #print("in DtRewardCollisionAvoidance, input reward is {}".format(reward))
+        if type(reward)==np.ndarray:
+            reward = reward[0]
+        proximity_penalty = self.unwrapped._proximity_penalty2(self.unwrapped.cur_pos, self.unwrapped.cur_angle)
         self.proximity_reward = -(self.prev_proximity_penalty - proximity_penalty) * 50
         if self.proximity_reward < 0.:
             self.proximity_reward = 0.
         logger.debug("Proximity reward: {:.3f}".format(self.proximity_reward))
         self.prev_proximity_penalty = proximity_penalty
+        #print("In collision reward is {}".format(reward))
+        #print("proximity reward is {}".format(self.proximity_reward))
         return reward + self.proximity_reward
 
     def reset(self, **kwargs):
@@ -286,6 +295,7 @@ class DtRewardProximityPenalty(gym.RewardWrapper):
         proximity_penalty = self.unwrapped.proximity_penalty2(self.unwrapped.cur_pos, self.unwrapped.cur_angle)
         self.proximity_reward = proximity_penalty * 2.5
         logger.debug("Proximity reward: {:.3f}".format(self.proximity_reward))
+        #print("proximity reward is {}".format(self.proximity_reward))
         return reward + self.proximity_reward
 
     def reset(self, **kwargs):
