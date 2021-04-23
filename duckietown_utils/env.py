@@ -12,7 +12,6 @@ from duckietown_utils.wrappers.observation_wrappers import *
 from duckietown_utils.wrappers.action_wrappers import *
 from duckietown_utils.wrappers.reward_wrappers import *
 from duckietown_utils.wrappers.simulator_mod_wrappers import *
-from duckietown_utils.wrappers.aido_wrapper import AIDOWrapper
 from config.config import load_config
 
 logger = logging.getLogger(__name__)
@@ -37,7 +36,7 @@ CAMERA_WIDTH = DEFAULT_CAMERA_WIDTH
 CAMERA_HEIGHT = DEFAULT_CAMERA_HEIGHT
 
 
-def launch_and_wrap_env(env_config, seed=13, default_env_id=0):
+def launch_and_wrap_env(env_config, seed=3, default_env_id=0):
     try:
         env_id = env_config.worker_index  # config is passed by rllib
     except AttributeError as err:
@@ -54,34 +53,67 @@ def launch_and_wrap_env(env_config, seed=13, default_env_id=0):
     # "Exception: Could not find a valid starting pose after 5000 attempts" in duckietown-gym-daffy 5.0.13
     spawn_successful = False
     while not spawn_successful:
-        try:
-            env = Simulator(
-                seed=seed,  # random seed
-                map_name=resolve_multimap_name(env_config["training_map"], env_id),
-                max_steps=env_config.get("episode_max_steps", 500),
-                domain_rand=env_config["domain_rand"],
-                dynamics_rand=env_config["dynamics_rand"],
-                camera_rand=env_config["camera_rand"],
-                camera_width=CAMERA_WIDTH,
-                camera_height=CAMERA_HEIGHT,
-                accept_start_angle_deg=env_config["accepted_start_angle_deg"],
-                full_transparency=True,
-                distortion=env_config["distortion"],
-                frame_rate=env_config["simulation_framerate"],
-                frame_skip=env_config["frame_skip"],
-                robot_speed=robot_speed
-            )
-            # env = DuckietownEnv(
-            #     map_name=resolve_multimap_name(env_config["training_map"], env_id),
-            #     domain_rand=False,
-            #     draw_bbox=False,
-            #     max_steps=500001,
-            #     seed=seed
-            # )
-            spawn_successful = True
-        except Exception as e:
-            seed += 1  # Otherwise it selects the same tile in the next attempt
-            logger.error("{}; Retrying with new seed: {}".format(e, seed))
+        env = Simulator(
+            seed=seed,  # random seed
+            map_name=resolve_multimap_name(env_config["training_map"], env_id),
+            max_steps=env_config.get("episode_max_steps", 500),
+            domain_rand=env_config["domain_rand"],
+            # dynamics_rand=env_config["dynamics_rand"],
+            # camera_rand=env_config["camera_rand"],
+            camera_width=CAMERA_WIDTH,
+            camera_height=CAMERA_HEIGHT,
+            accept_start_angle_deg=env_config["accepted_start_angle_deg"],
+            full_transparency=True,
+            distortion=env_config["distortion"],
+            frame_rate=env_config["simulation_framerate"],
+            frame_skip=env_config["frame_skip"],
+            robot_speed=robot_speed
+        )
+        # env = DuckietownEnv(
+        #     map_name=resolve_multimap_name(env_config["training_map"], env_id),
+        #     domain_rand=False,
+        #     draw_bbox=False,
+        #     max_steps=500001,
+        #     seed=seed
+        # )
+        assert robot_speed==1.2
+        spawn_successful = True
+        # except Exception as e:
+        #     seed += 1  # Otherwise it selects the same tile in the next attempt
+        #     logger.error("{}; Retrying with new seed: {}".format(e, seed))
+    logger.debug("Env init successful")
+    env = wrap_env(env_config, env)
+    return env
+
+def launch_and_wrap_duckieenv(env_config, seed=13, default_env_id=0):
+    try:
+        env_id = env_config.worker_index  # config is passed by rllib
+    except AttributeError as err:
+        logger.warning(err)
+        env_id = default_env_id
+
+    robot_speed = env_config.get('robot_speed', DEFAULT_ROBOT_SPEED)
+    # If random robot speed is specified, the robot speed key holds a dictionary
+    if type(robot_speed) is dict or robot_speed == 'default':
+        robot_speed = DEFAULT_ROBOT_SPEED  # The initial robot speed won't be random
+
+    print("our seed of the environment is now {}".format(seed))
+    # The while loop and try block are necessary to prevent instant training crash from the
+    # "Exception: Could not find a valid starting pose after 5000 attempts" in duckietown-gym-daffy 5.0.13
+    spawn_successful = False
+    while not spawn_successful:
+        env = DuckietownEnv(
+            map_name=resolve_multimap_name(env_config["training_map"], env_id),
+            domain_rand=False,
+            draw_bbox=False,
+            max_steps=1500,
+            seed=seed
+        )
+        assert robot_speed==1.2
+        spawn_successful = True
+        # except Exception as e:
+        #     seed += 1  # Otherwise it selects the same tile in the next attempt
+        #     logger.error("{}; Retrying with new seed: {}".format(e, seed))
     logger.debug("Env init successful")
     env = wrap_env(env_config, env)
     return env
@@ -104,7 +136,7 @@ def wrap_env(env_config: dict, env=None):
 
     # Simulation mod wrappers
     if env_config["mode"] in ['train', 'debug'] and env_config['aido_wrapper']:
-        env = AIDOWrapper(env)
+        assert "aido is used, but it is not supported"
     env = InconvenientSpawnFixingWrapper(env)
     if env_config.get('spawn_obstacles', False):
         env = ObstacleSpawningWrapper(env, env_config)
@@ -158,7 +190,7 @@ def wrap_env(env_config: dict, env=None):
         elif env_config["reward_function"] == 'lane_distance':
             env = DtRewardWrapperDistanceTravelled(env)
         elif env_config["reward_function"] == 'default_clipped':
-            env = DtRewardClipperWrapper(env, 2, -2)
+            env = DtRewardClipperWrapper(env, 2, -3)
         else:  # Also env_config['mode'] == 'default'
             logger.warning("Default Gym Duckietown reward used")
         env = DtRewardCollisionAvoidance(env)
